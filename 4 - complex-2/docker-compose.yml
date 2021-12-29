@@ -1,0 +1,52 @@
+version: '3'
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
+  redis:
+    image: 'redis:latest'
+  nginxAndClient:
+    depends_on:
+      - api
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    ports:
+      - '80:80'
+  api:
+
+    depends_on:
+      - redis
+      - postgres
+    build:
+      dockerfile: Dockerfile.dev
+      # Saying which folder to find this dockerfile in
+      context: ./server
+
+    # The workdir is /app in this dockerfile so everything is relative to that
+    volumes:
+      - /app/node_modules
+      # Enables live updates when we change code
+      - ./server:/app
+
+      # Default vals found in postgres image in docker store
+    environment:
+      - REDIS_HOST=redis # redis is used bc that is the name of the redis service on line 7
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
